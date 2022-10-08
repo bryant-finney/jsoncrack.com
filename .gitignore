@@ -40,3 +40,10 @@ yarn-error.log*
 **/public/workbox-*.js
 **/public/sw.js
 **/public/fallback-*.js
+
+# nodenv
+.node-version
+
+# IDEs
+*.code-workspace
+.yamllint

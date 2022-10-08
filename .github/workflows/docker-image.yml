@@ -1,0 +1,65 @@
+# yamllint disable-line rule:line-length
+# ref: https://dev.to/cloudx/multi-arch-docker-images-the-easy-way-with-github-actions-4k54
+---
+name: Docker Image CI
+
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    name: 🏗 Build Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      # Get the repository's code
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # https://github.com/docker/setup-qemu-action
+      - name: 🧰 Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      # https://github.com/docker/setup-buildx-action
+      - name: ⚙️ Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: 🔐 Login to GHCR
+        if: github.triggering_actor == github.repository_owner
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🌐 Docker meta
+        id: docker_meta  # referenced in the next step
+        uses: docker/metadata-action@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: ghcr.io/${{ github.repository }}
+
+          # Docker tags based on the following events/attributes
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+
+      - name: 🚀 Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.triggering_actor == github.repository_owner }}
+          tags: ${{ steps.docker_meta.outputs.tags }}
